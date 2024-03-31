@@ -3,6 +3,9 @@ global DimasPrintf
 extern GetStdHandle
 extern WriteFile
 
+DECIMAL equ 10
+BINARY  equ 2
+
 %macro MULTI_PUSH 1-*
     %rep %0
         push %1
@@ -94,7 +97,7 @@ PrintBuffer:
 ;------------------------------------------------------------
 ; Print Special Symb Func
 ; Entry: rcx - '%' symb address, rdx - buffer counter, r11 - num of args written
-; Destr: r10, r12, r14, rdi, rsi
+; Destr: r10, r12, r14, rdi, rsi, rbx
 ;------------------------------------------------------------
 PrintSpecialSymb:
     inc rcx
@@ -114,39 +117,38 @@ PrintSpecialSymb:
     mov byte [r12+r11], r14b
     ret
 
-    ByteCase:
+    BinaryCase:
     call GetProperArg
-
-
+    mov rbx, BINARY
+    call FillBufferWithNum
     ret
 
     CharCase:
     call GetProperArg
     mov byte [r12+r11], r15b
-
     ret
 
     DecimalCase:
     call GetProperArg
-    ;mov [r12+r11],
+    mov rbx, DECIMAL
+    call FillBufferWithNum
+    ret
 
     StringCase:
     call GetProperArg
-
     ret
 
     Exit:
     mov byte [r12+r11], '%'
     inc r11
     mov byte [r12+r11], r14b
-
     ret
 
 JumpTable:
     times '%' -  0      dq Exit
     dq PercentCase
     times 'b' - '%' - 1 dq Exit
-    dq ByteCase
+    dq BinaryCase
     dq CharCase
     dq DecimalCase
     times 's' - 'd' - 1 dq Exit
@@ -193,7 +195,6 @@ GetProperArg:
     mov r15, [rbp]
     add rax, 8
     pop rbp
-
     ret
 
 ArgTable:
@@ -201,6 +202,54 @@ ArgTable:
     dq RetR8
     dq RetR9
 
-FillBuferWithDecimal:
+;------------------------------------------------------------
+; Fill Buffer With Num Func
+; Entry RCX - Notation of Num
+; Destr: none
+;------------------------------------------------------------
+FillBufferWithNum:
+    MULTI_PUSH rax, rcx, rdx, rsi, r10, r13, r14        ; TODO: проверка переполнения буфера + добавить минус
 
+    mov rcx, rbx
+    mov rsi, r11
+    mov rax, r15
+
+    .Cycle:
+    cmp rax, 0
+    je .CycleEnd
+
+    xor rdx, rdx
+    idiv rcx                        ; decimal / 10
+
+    mov byte [r12+r11], dl          ; decimal % 10
+    add byte [r12+r11], 48
+
+    inc r11
+
+    jmp .Cycle
+
+    .CycleEnd:
+
+    mov rdx, r11                    ; SAVE r11
+    dec r11
+    .ReverseString:
+    cmp r11, rsi
+    jbe .FuncEnd
+
+    ; SWAP
+    mov byte r13b, [r12+r11]
+    mov byte r14b, [r12+rsi]
+    mov byte [r12+r11], r14b
+    mov byte [r12+rsi], r13b
+
+    dec r11
+    inc rsi
+    jmp .ReverseString
+
+    .FuncEnd:
+
+    mov r11, rdx                    ; SAVE r11
+
+    MULTI_POP r14, r13, r10, rsi, rdx, rcx, rax
     ret
+

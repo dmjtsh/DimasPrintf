@@ -9,7 +9,8 @@ int main()
     char c = 'c';
     char d = 'd';
     char e = 'e';
-    DimasPrintf("R%c pidr%c%% %c %c %c\n", a, b, c, d, e);
+    int f = 34595;
+    DimasPrintf("R%c%d %b pidr%c%% %c %c %c\n", a, f, f, b, c, d, e);
 
     system("pause");
 
