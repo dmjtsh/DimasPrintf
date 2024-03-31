@@ -10,7 +10,8 @@ int main()
     char d = 'd';
     char e = 'e';
     int f = 34595;
-    DimasPrintf("R%c%d %b pidr%c%% %c %c %c\n", a, f, f, b, c, d, e);
+    int m = 444;
+    DimasPrintf("R%c%d %b %x pidr%c%% %c %c %c\n", a, f, f, m, b, c, d, e);
 
     system("pause");
 

@@ -3,6 +3,7 @@ global DimasPrintf
 extern GetStdHandle
 extern WriteFile
 
+HEX     equ 16
 DECIMAL equ 10
 BINARY  equ 2
 
@@ -138,6 +139,12 @@ PrintSpecialSymb:
     call GetProperArg
     ret
 
+    HexCase:
+    call GetProperArg
+    mov rbx, HEX
+    call FillBufferWithNum
+    ret
+
     Exit:
     mov byte [r12+r11], '%'
     inc r11
@@ -153,6 +160,8 @@ JumpTable:
     dq DecimalCase
     times 's' - 'd' - 1 dq Exit
     dq StringCase
+    times 'x' - 's' - 1 dq Exit
+    dq HexCase
     times 255 - 's' - 1 dq Exit
 
 ;------------------------------------------------------------
@@ -219,11 +228,21 @@ FillBufferWithNum:
     je .CycleEnd
 
     xor rdx, rdx
-    idiv rcx                        ; decimal / 10
+    idiv rcx                        ; decimal / notation
 
-    mov byte [r12+r11], dl          ; decimal % 10
-    add byte [r12+r11], 48
+    mov byte [r12+r11], dl
 
+    cmp dl, 10
+    jae .PrintHex
+
+    .PrintDecimalAndBinary:          ; decimal % notation
+    add byte [r12+r11], '0'
+    jmp .EndPrint
+
+    .PrintHex:
+    add byte [r12+r11], 55
+
+    .EndPrint:
     inc r11
 
     jmp .Cycle
@@ -247,9 +266,8 @@ FillBufferWithNum:
     jmp .ReverseString
 
     .FuncEnd:
-
     mov r11, rdx                    ; SAVE r11
+    dec r11
 
     MULTI_POP r14, r13, r10, rsi, rdx, rcx, rax
     ret
-
