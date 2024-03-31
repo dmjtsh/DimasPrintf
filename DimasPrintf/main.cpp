@@ -9,9 +9,11 @@ int main()
     char c = 'c';
     char d = 'd';
     char e = 'e';
-    int f = 34595;
+    int f = -1343;
     int m = 444;
-    DimasPrintf("R%c%d %b %x pidr%c%% %c %c %c\n", a, f, f, m, b, c, d, e);
+
+    char str[] = "ussaddsadsdal";
+    DimasPrintf("R%d %x %x %x %s\n", f, m, m, m, str);
 
     system("pause");
 

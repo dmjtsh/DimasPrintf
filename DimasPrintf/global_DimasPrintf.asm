@@ -7,8 +7,6 @@ HEX     equ 16
 DECIMAL equ 10
 BINARY  equ 2
 
-BUFFER_SIZE equ 512
-
 %macro MULTI_PUSH 1-*
     %rep %0
         push %1
@@ -23,20 +21,8 @@ BUFFER_SIZE equ 512
     %endrep
 %endmacro
 
-%macro CHECK_BUFFER 0
-    cmp r11, BUFFER_SIZE-10         ; if buffer full (- 10 for safety)
-    jl .OutputSkip
-
-    MULTI_PUSH rcx, rdx, r8, r9
-    call PrintBuffer
-    MULTI_POP  r9, r8, rdx, rcx
-    xor r11, r11                    ; zeroing r11
-
-    .OutputSkip:
-%endmacro
-
 section .data
-    buffer DB BUFFER_SIZE DUP(0)
+    buffer DB 512 DUP(0)
 
 section .text
 
@@ -56,7 +42,15 @@ DimasPrintf:
     cmp byte [rcx], 0       ; if str[i] == '\0'
     je .End
 
-    CHECK_BUFFER            ; CHECKING BUFFER IN CYCLE
+    cmp r11, 512            ; if buffer full
+    jne .CycleBody
+
+    MULTI_PUSH rcx, rdx, r8, r9
+    call PrintBuffer
+    MULTI_POP  r9, r8, rdx, rcx
+    xor r11, r11            ; zeroing r11
+
+    .CycleBody:
 
     mov byte r10b, [rcx]    ; symb
 
@@ -205,9 +199,12 @@ GetProperArg:
     mov r15, r9
     ret
 
-    RetStackArg:
-    mov r15, ss:[rax]               ; TODO: norm ili net?
+    RetStackArg:        ; TODO: исправить
+    push rbp
+    mov rbp, rax
+    mov r15, [rbp]
     add rax, 8
+    pop rbp
     ret
 
 ArgTable:
@@ -217,29 +214,26 @@ ArgTable:
 
 ;------------------------------------------------------------
 ; Fill Buffer With Num Func
-; Entry RCX - Notation of Num
+; Entry RBX - Notation of Num
 ; Destr: none
 ;------------------------------------------------------------
 FillBufferWithNum:
     MULTI_PUSH rax, rcx, rdx, rsi, r10, r13, r14        ; TODO: проверка переполнения буфера + добавить минус
 
-    cmp dword r15d, 0
-    jg .PositiveNum
+    cmp r15, 0
+    ;ja .PositiveNum
 
-    mov byte [r12+r11], '-'
-    inc r11
-    neg r15d
+    ;mov byte [r12+r11], '-'
+    ;inc r11
+    ;neg r15
 
-    .PositiveNum:
+    ;.PositiveNum:
 
     mov rcx, rbx
     mov rsi, r11
     mov rax, r15
 
     .Cycle:
-
-    CHECK_BUFFER                    ; CHECKING BUFFER IN CYCLE
-
     cmp rax, 0
     je .CycleEnd
 
@@ -294,10 +288,8 @@ FillBufferWithNum:
 ; Destr: none
 ;------------------------------------------------------------
 FillBufferWithString:
+
     .Cycle:
-
-    CHECK_BUFFER            ; CHECKING BUFFER IN CYCLE
-
     cmp byte [r15], 0
     je .CycleEnd
 
@@ -306,7 +298,6 @@ FillBufferWithString:
 
     inc r11
     inc r15
-
     jmp .Cycle
     .CycleEnd:
 
