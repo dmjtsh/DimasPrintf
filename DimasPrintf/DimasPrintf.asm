@@ -25,9 +25,12 @@ section .text
 ;------------------------------------------------------------
 ; Dimas Printf
 ; Entry: rcx: format str to output
-; Regs to save: rcx, rdx, r8, r9, r11 - buffer counter, r13 - num of args written
+; Regs to save: rcx, rdx, r8, r9, r11 - buffer counter, r13 - num of args written, rax - current stack arg (if it exists)
 ;------------------------------------------------------------
 DimasPrintf:
+    mov rax, rsp
+    add rax, 40
+
     xor r11, r11            ; buffer counter
     xor r13, r13            ; num of args written
 
@@ -47,10 +50,10 @@ DimasPrintf:
 
     mov byte r10b, [rcx]    ; symb
 
-    ;cmp r10b, '%'
-    ;jne .WriteSymb
-    ;call PrintSpecialSymb
-    ;jmp .CycleEnd
+    cmp r10b, '%'
+    jne .WriteSymb
+    call PrintSpecialSymb
+    jmp .CycleEnd
 
     .WriteSymb:
     mov r12, buffer
@@ -72,7 +75,7 @@ DimasPrintf:
 ; Destr: rcx, rdx, r8, r9
 ;------------------------------------------------------------
 PrintBuffer:
-    sub rsp, 40
+    sub rsp, 40         ; The fuck??????????????????????
 
     mov rdx, buffer     ; Message
     mov rcx, -11        ; GetStdHandle - STD_OUTPUT
@@ -91,37 +94,113 @@ PrintBuffer:
 ;------------------------------------------------------------
 ; Print Special Symb Func
 ; Entry: rcx - '%' symb address, rdx - buffer counter, r11 - num of args written
-; Used for:
+; Destr: r10, r12, r14, rdi, rsi
 ;------------------------------------------------------------
-;PrintSpecialSymb:
-   ;inc rcx
+PrintSpecialSymb:
+    inc rcx
+    xor r10, r10
 
-   ;mov r10b, [rcx]
-   ;shl r10, 3
-   ;add r10, JumpTable
-   ;;jmp [r10]
+    mov r14b, [rcx]         ; tmp var
 
-   ;PercentCase:
-   ;mov r12, buffer
-   ;mov byte [r12+rdx], r10b
-   ;ret
+    mov r10b, r14b
+    shl r10, 3
+    mov rdi, JumpTable
+    add r10, rdi
 
-   ;ByteCase:
+    mov r12, buffer         ; moving address of buffer to r12 for convenience
+    jmp [r10]               ; symbol*8 + JumpTable address
 
-   ;CharCase:
+    PercentCase:
+    mov byte [r12+r11], r14b
+    ret
 
-   ;StringCase:
+    ByteCase:
+    call GetProperArg
 
-   ;Exit:
-   ;; just print this symb
-   ;ret
 
-;JumpTable:
-;    times '%' -  0      dq Exit
-;    dq PercentCase
-;    times 'b' - '%' - 1 dq Exit
-;    dq ByteCase
-;    dq CharCase
-;    times 's' - 'c' - 1 dq Exit
-;    dq StringCase
-;    times 255 - 's' - 1 dq Exit
+    ret
+
+    CharCase:
+    call GetProperArg
+    mov byte [r12+r11], r15b
+
+    ret
+
+    DecimalCase:
+    call GetProperArg
+    ;mov [r12+r11],
+
+    StringCase:
+    call GetProperArg
+
+    ret
+
+    Exit:
+    mov byte [r12+r11], '%'
+    inc r11
+    mov byte [r12+r11], r14b
+
+    ret
+
+JumpTable:
+    times '%' -  0      dq Exit
+    dq PercentCase
+    times 'b' - '%' - 1 dq Exit
+    dq ByteCase
+    dq CharCase
+    dq DecimalCase
+    times 's' - 'd' - 1 dq Exit
+    dq StringCase
+    times 255 - 's' - 1 dq Exit
+
+;------------------------------------------------------------
+; GetProperArg Func
+; Entry: r13
+; Used for:
+; Ret: R15 - proper arg
+; Destr: r10, rdi
+;------------------------------------------------------------
+GetProperArg:
+    xor r10, r10
+
+    mov r10, r13
+
+    inc r13         ; Count of Args Written ++
+    cmp r13, 4
+    jae RetStackArg ; if Count Of Args >= 4
+
+    shl r10, 3
+
+    mov rdi, ArgTable
+    add r10, rdi
+    jmp [r10]
+
+    RetRDX:
+    mov r15, rdx
+    ret
+
+    RetR8:
+    mov r15, r8
+    ret
+
+    RetR9:
+    mov r15, r9
+    ret
+
+    RetStackArg:        ; TODO: исправить
+    push rbp
+    mov rbp, rax
+    mov r15, [rbp]
+    add rax, 8
+    pop rbp
+
+    ret
+
+ArgTable:
+    dq RetRDX
+    dq RetR8
+    dq RetR9
+
+FillBuferWithDecimal:
+
+    ret
